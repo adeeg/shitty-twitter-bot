@@ -27,11 +27,6 @@ OPT_OUT = '@{}, I would like to opt-out!'.format(handle)
 users = []
 
 # read in existing users
-""" with open('users.json') as f:
-    users = json.load(f)['users']
-    f.close() """
-
-# read in existing users
 with open('users.txt', 'r') as f:
     for x in f.readlines():
         users.append(x.strip())
@@ -62,8 +57,6 @@ def removeUser(userId):
         removeUserFromFile(userId)
         users.remove(userId)
 
-print(users)
-
 """
     tweepy stuff
 """
@@ -73,23 +66,36 @@ auth.set_access_token(acc_tok, acc_tok_sec)
 api = tweepy.API(auth)
 
 user = api.me()
-print(user.name)
+print('Bot running on {}'.format(user.name))
 
 # on any user tweeting @
 class StreamAuth(tweepy.StreamListener):
     def on_status(self, status):
-        print(status.text)
+        """ if status == OPT_IN:
+            print('opt in!') """
+        print(status.user['id_str'])
 
 # on user tweeting anything
+# add/remove them to users list
 class StreamReply(tweepy.StreamListener):
     def on_status(self, status):
-        print(status.text)
+        #addUser(status.user.id_str)
+        user = status.user.id_str
+        if status.text == OPT_IN:
+            print('{} opted in!'.format(status.user.name))
+            addUser(user)
+        elif status.text == OPT_OUT:
+            print('{} opted out!'.format(status.user.name))
+            removeUser(user)
 
 def startStream():
-    sa = StreamAuth()
-    s1 = tweepy.Stream(auth = api.auth, listener=sa)
-    s1.filter(follow=['2286822205'], is_async=True)
-
     sr = StreamReply()
     s2 = tweepy.Stream(auth = api.auth, listener=sr)
     s2.filter(track='nenivar', is_async=True)
+    s2.disconnect()
+
+    """sa = StreamAuth()
+    s1 = tweepy.Stream(auth = api.auth, listener=sa)
+    s1.filter(follow=['2286822205'], is_async=True) """
+
+startStream()
