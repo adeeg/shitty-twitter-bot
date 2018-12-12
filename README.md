@@ -1,28 +1,39 @@
 # shitty-twitter-bot
 
-## Running
+## Setup
 
-* make sure the twitter account for your bot can receive direct messages
 * get API keys for your [bot](developer.twitter.com)
 * create & fill in `auth.json`
+    ```
+    {
+        "twitter_handle": "",
+        "consumer_key": "",
+        "consumer_secret": "",
+        "access_token": "",
+        "access_token_secret": ""
+    }
+    ```
+* change `MSG_REPLY` in `main.py` to what you want
+* add some users in `users.json` e.g.
+    ```
+    {"xxxxxxx": 1, "xxxxxxy": 1}
+    ```
+    * where `xxxxxxx` is the user's id ([use this](http://gettwitterid.com/))
+    * if a user opts out **do not** add them back
 
-```
-{
-    "twitter_handle": "",
-    "consumer_key": "",
-    "consumer_secret": "",
-    "access_token": "",
-    "access_token_secret": ""
-}
-```
+## Running
 
-* `pip install -r requirements.txt`
-* `python3 main.py`
+1. `pip install -r requirements.txt`
+2. `python3 main.py`
 
-## Using
+## About
 
-Tweets from users (in users.txt) will be replied to with a given message.
+Tweets from users will be replied to with a given message.
 
-To opt out, tweet the bot '@nenivar, I would like to opt-out!'
+To opt out, tweet the bot '@[bot_handle] opt-out'
 
 Opting in does not work because you can only have one stream per bot >:(
+
+Code probably bad and easy to break
+
+Sorry if this is against Twitter's rules I'll remove if so!

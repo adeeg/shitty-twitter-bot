@@ -104,6 +104,6 @@ venv.bak/
 .mypy_cache/
 
 # stuff
-auth.json
-
 .vscode
+auth.json
+users.json

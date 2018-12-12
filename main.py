@@ -1,11 +1,10 @@
 import tweepy
 import json
-from threading import Lock
+import os.path
 
 """
     read in auth data
 """
-
 auth_data = None
 with open('auth.json') as f:
     auth_data = json.load(f)
@@ -17,8 +16,8 @@ cons_sec = auth_data['consumer_secret']
 acc_tok = auth_data['access_token']
 acc_tok_sec = auth_data['access_token_secret']
 
-MSG_OPT_IN = '@{}, I would like to opt-in!'.format(handle)
-MSG_OPT_OUT = '@{}, I would like to opt-out!'.format(handle)
+MSG_OPT_IN = 'opt-in'
+MSG_OPT_OUT = 'opt-out'
 MSG_AT = '@{}'.format(handle)
 MSG_REPLY = 'Here\'s your custom message!'
 
@@ -26,38 +25,36 @@ MSG_REPLY = 'Here\'s your custom message!'
     get opt-in from user
     & opt-out
 """
-users = []
+FILE_USERS = 'users.json'
+users = {}
 
 # read in existing users
-with open('users.txt', 'r') as f:
-    for x in f.readlines():
-        users.append(x.strip())
-    f.close()
+def readUsersFromFile() -> {}:
+    users = {}
+    if os.path.isfile(FILE_USERS):
+        with open(FILE_USERS, 'r') as f:
+            users = json.load(f)
+            f.close()
+    return users
 
-def addUserToFile(userId):
-    with open('users.txt', 'a') as f:
-        f.write('{}\n'.format(userId))
+def saveUsersToFile() -> None:
+    with open(FILE_USERS, 'w') as f:
+        json.dump(users, f)
         f.close()
 
-def removeUserFromFile(userId):
-    new = []
-    with open('users.txt', 'r') as f:
-        lines = f.readlines()
-        new = list(filter(lambda x: x != userId, users))
-        f.close()
-    with open('users.txt', 'w') as f:
-        f.writelines(new)
-        f.close()
+def addUser(userId: str) -> None:
+    users[userId] = 0
+    saveUsersToFile()
 
-def addUser(userId):
-    if userId not in users:
-        addUserToFile(userId)
-        users.append(userId)
-
-def removeUser(userId):
+def removeUser(userId: str) -> None:
     if userId in users:
-        removeUserFromFile(userId)
-        users.remove(userId)
+        users.pop(userId)    
+        saveUsersToFile()
+
+def incUserSent(userId: str) -> None:
+    if userId in users:
+        users[userId] += 1
+        saveUsersToFile()
 
 """
     tweepy stuff
@@ -75,35 +72,43 @@ class StreamBoth(tweepy.StreamListener):
         self.restart = False
 
     def on_connect(self):
-        print('Streaming started with users {}'.format(users))
+        print('Streaming started with users {}'.format(list(users.keys())))
     
     def on_status(self, status):
         # for user opting in/out
         if MSG_AT in status.text:
-            print('{} tweeted you!'.format(status.user.name))
-            if status.text == MSG_OPT_IN:
-                print('{} opted in!'.format(status.user.name))
-                addUser(user)
+            print('{} tweeted you!'.format(status.user.screen_name))
+            if MSG_OPT_IN in status.text:
+                print('{} opted in!'.format(status.user.screen_name))
+                addUser(status.user.id_str)
                 self.restart = True
-            elif status.text == MSG_OPT_OUT:
-                print('{} opted out!'.format(status.user.name))
-                removeUser(user)
+            elif MSG_OPT_OUT in status.text:
+                print('{} opted out!'.format(status.user.screen_name))
+                removeUser(status.user.id_str)
                 self.restart = True
         # for tracked user tweeting
-        elif status.user.id_str in users:
-            print('Tweeted @{}'.format(status.user.name))
-            api.update_status('@{} {}'.format(status.user.name, MSG_REPLY))
+        elif status.user.id_str in list(users.keys()):
+            print('Tweeted @{}'.format(status.user.screen_name))
+            api.update_status('@{} {} #{}'.format(status.user.screen_name, MSG_REPLY, users[status.user.id_str]), status.id_str)
+            incUserSent(status.user.id_str)
+
+"""
+    let's do stuff
+"""
+users = readUsersFromFile()
+if not users:
+    print('No users in users.json!')
 
 streamList = StreamBoth()
 stream = tweepy.Stream(auth = api.auth, listener=streamList)
 stream.filter(track=MSG_AT, follow=users, is_async=True)
 
-while 1:
+while True:
     if streamList.restart:
         print('User opted in/out; restarting...')
         stream.disconnect()
 
         # restart with new set of users
-        stream = StreamBoth()
+        streamList = StreamBoth()
         stream = tweepy.Stream(auth = api.auth, listener=streamList)
         stream.filter(track=MSG_AT, follow=users, is_async=True)
